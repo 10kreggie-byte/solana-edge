@@ -1,12 +1,13 @@
 use anyhow::{bail, Context, Result};
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{header::CONTENT_TYPE, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use serde::Serialize;
+use solana_edge_settlement::{RewardClaim, RewardManifest};
 use solana_edge_coordinator::{create_job, receipt_store::ReceiptStore};
 use solana_edge_protocol::{
     validate_solana_pubkey, verify_wallet_signature, CoordinatorConfig, ReceiptSigner,
@@ -36,6 +37,9 @@ struct AppState {
     challenges: Arc<Mutex<HashMap<String, StoredChallenge>>>,
     sessions: Arc<Mutex<HashMap<String, StoredSession>>>,
     receipt_store: Arc<ReceiptStore>,
+    reward_manifest_dir: String,
+    rewards_program_id: Option<String>,
+    reward_mint: Option<String>,
 }
 
 #[derive(Clone)]
@@ -55,6 +59,27 @@ struct StoredSession {
 struct HealthResponse {
     status: &'static str,
     cluster: &'static str,
+}
+
+#[derive(Serialize)]
+struct RewardClaimResponse {
+    reward_epoch: String,
+    merkle_root_hex: String,
+    total_amount: String,
+    claim: RewardClaimJson,
+}
+
+#[derive(Serialize)]
+struct RewardClaimJson {
+    worker_pubkey: String,
+    amount: String,
+    proof: Vec<RewardProofNodeJson>,
+}
+
+#[derive(Serialize)]
+struct RewardProofNodeJson {
+    hash_hex: String,
+    sibling_is_left: bool,
 }
 
 type ApiResult<T> = Result<Json<T>, ApiError>;
@@ -90,6 +115,13 @@ impl ApiError {
     fn upstream(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_GATEWAY,
+            message: message.into(),
+        }
+    }
+
+    fn not_found(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
             message: message.into(),
         }
     }
@@ -130,12 +162,18 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| "solana-edge-receipts.sqlite3".to_string());
     let receipt_store = ReceiptStore::open(&receipt_db_path)?;
 
+    let reward_manifest_dir = env::var("SOLANA_EDGE_REWARD_MANIFEST_DIR")
+        .unwrap_or_else(|_| "reward-manifests".to_string());
+
     let state = AppState {
         rpc,
         signer: Arc::new(signer),
         challenges: Arc::new(Mutex::new(HashMap::new())),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         receipt_store: Arc::new(receipt_store),
+        reward_manifest_dir,
+        rewards_program_id: env::var("SOLANA_EDGE_REWARDS_PROGRAM_ID").ok(),
+        reward_mint: env::var("SOLANA_EDGE_REWARD_MINT").ok(),
     };
 
     let app = Router::new()
@@ -145,6 +183,7 @@ async fn main() -> Result<()> {
         .route("/v1/challenge", post(challenge))
         .route("/v1/session", post(session))
         .route("/v1/submit", post(submit))
+        .route("/v1/rewards/{epoch}/{worker}", get(reward_claim))
         .layer(cors)
         .with_state(state);
 
@@ -171,7 +210,52 @@ async fn config(State(state): State<AppState>) -> Json<CoordinatorConfig> {
         cluster: "devnet".into(),
         receipt_signer_pubkey: state.signer.verifying_key_base58(),
         session_ttl_seconds: SESSION_TTL_SECONDS as u64,
+        rewards_program_id: state.rewards_program_id.clone(),
+        reward_mint: state.reward_mint.clone(),
     })
+}
+
+
+async fn reward_claim(
+    State(state): State<AppState>,
+    Path((reward_epoch, worker)): Path<(u64, String)>,
+) -> ApiResult<RewardClaimResponse> {
+    validate_solana_pubkey(&worker)
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+
+    let path = format!("{}/{}.json", state.reward_manifest_dir, reward_epoch);
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|_| ApiError::not_found("reward epoch is not published by the coordinator"))?;
+    let manifest: RewardManifest = serde_json::from_str(&raw)
+        .map_err(|error| ApiError::upstream(format!("invalid reward manifest: {error}")))?;
+
+    if manifest.reward_epoch != reward_epoch {
+        return Err(ApiError::upstream("reward manifest epoch mismatch"));
+    }
+
+    let claim: RewardClaim = manifest
+        .claims
+        .into_iter()
+        .find(|claim| claim.worker_pubkey == worker)
+        .ok_or_else(|| ApiError::not_found("wallet has no reward in this epoch"))?;
+
+    Ok(Json(RewardClaimResponse {
+        reward_epoch: reward_epoch.to_string(),
+        merkle_root_hex: manifest.merkle_root_hex,
+        total_amount: manifest.total_amount.to_string(),
+        claim: RewardClaimJson {
+            worker_pubkey: claim.worker_pubkey,
+            amount: claim.amount.to_string(),
+            proof: claim
+                .proof
+                .into_iter()
+                .map(|node| RewardProofNodeJson {
+                    hash_hex: node.hash_hex,
+                    sibling_is_left: node.sibling_is_left,
+                })
+                .collect(),
+        },
+    }))
 }
 
 async fn job(State(state): State<AppState>) -> ApiResult<solana_edge_miner_core::JobSpec> {
