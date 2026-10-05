@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "check": "node --check bootstrap-devnet.mjs && node --check publish-epoch.mjs"
+    "check": "node --check bootstrap-devnet.mjs && node --check publish-epoch.mjs && node check-invariants.mjs"
   },
   "dependencies": {
     "@solana/spl-token": "0.4.15",
