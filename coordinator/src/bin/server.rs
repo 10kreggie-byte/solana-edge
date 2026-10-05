@@ -290,7 +290,7 @@ async fn submit(
     {
         let mut issued = state.issued_receipts.lock().await;
         if !issued.insert(receipt.receipt_id.clone()) {
-            return Err(ApiError::conflict("receipt already issued for this wallet/job"));
+            return Err(ApiError::conflict(\n                "receipt already issued for this wallet/job",\n            ));
         }
     }
 
