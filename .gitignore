@@ -6,6 +6,7 @@
 node_modules/
 .next/
 dist/
+web/src/wasm-pkg/
 
 # Solana/Anchor
 .anchor/
