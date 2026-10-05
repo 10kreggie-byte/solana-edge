@@ -22,8 +22,14 @@ jobs:
         run: cargo test -p solana-edge-miner-core
       - name: Test protocol signatures
         run: cargo test -p solana-edge-protocol
+      - name: Test durable receipt store
+        run: cargo test -p solana-edge-coordinator --lib
+      - name: Test reward manifest builder
+        run: cargo test -p solana-edge-settlement
+      - name: Test Anchor reward logic
+        run: cargo test -p solana-edge-rewards
       - name: Check native services
-        run: cargo check -p solana-edge-rpc -p solana-edge-miner-cli -p solana-edge-coordinator -p solana-edge-verifier
+        run: cargo check -p solana-edge-rpc -p solana-edge-miner-cli -p solana-edge-coordinator -p solana-edge-verifier -p solana-edge-settlement
       - name: Check WASM wrapper
         run: cargo check -p solana-edge-miner-wasm --target wasm32-unknown-unknown
 

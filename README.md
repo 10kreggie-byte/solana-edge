@@ -15,8 +15,9 @@ Browser wallet
   -> browser receives finalized Solana data job
   -> Rust/WASM computes deterministic result
   -> verifier refetches canonical finalized data
-  -> coordinator signs wallet-bound WorkReceipt
-  -> reward program settles test reward on Devnet (next milestone)
+  -> coordinator persists + signs wallet-bound WorkReceipt
+  -> receipts aggregate into a Merkle reward epoch
+  -> Anchor program verifies claim and transfers Devnet test reward
 ```
 
 ## Design principles
@@ -45,6 +46,7 @@ solana-edge/
 │   └── wasm/             Browser/WebAssembly interface
 ├── coordinator/          Job creation + browser-facing API
 ├── verifier/             Independent source + result verification
+├── settlement/           SQLite -> Merkle reward manifest builder
 ├── programs/
 │   └── rewards/          Solana/Anchor reward-settlement program
 ├── scripts/              Devnet helpers and smoke tests
@@ -100,8 +102,11 @@ The coordinator signing seed must be provided through `SOLANA_EDGE_RECEIPT_SIGNI
 - [x] Browser miner UI
 - [x] Wallet proof-of-control session
 - [x] Signed wallet-bound WorkReceipt
-- [ ] Devnet reward settlement program
-- [ ] Persistent receipt/replay database
+- [x] Devnet reward settlement program core
+- [x] Persistent receipt/replay database
+- [x] Deterministic Merkle reward manifest builder
+- [ ] Deploy reward program and test token on Devnet
+- [ ] Browser claim transaction flow
 - [ ] Multi-provider verification
 
 ## Non-goals for MVP
@@ -118,3 +123,16 @@ The coordinator signing seed must be provided through `SOLANA_EDGE_RECEIPT_SIGNI
 ## Status
 
 Early engineering prototype. Work receipts currently have test/accounting meaning only and no financial value.
+
+
+## Reward settlement V1
+
+Verified receipts are persisted to SQLite. For each reward epoch, the settlement CLI aggregates score by wallet and creates a deterministic Merkle manifest:
+
+```bash
+cargo run -p solana-edge-settlement -- solana-edge-receipts.sqlite3 <reward_epoch> > reward-manifest.json
+```
+
+The Anchor reward program stores one Merkle root per epoch. A worker claims with their amount and proof. The claim PDA is derived from `reward_epoch + worker pubkey`, so a wallet cannot claim the same epoch twice.
+
+V1 uses the standard SPL Token Program deliberately. Token-2022 features remain out of scope until settlement is proven on Devnet.

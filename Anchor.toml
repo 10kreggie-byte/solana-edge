@@ -1,0 +1,15 @@
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+solana_edge_rewards = "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE"
+
+[provider]
+cluster = "Devnet"
+wallet = "~/.config/solana/id.json"
+
+[workspace]
+members = [
+    "programs/rewards",
+]

@@ -7,7 +7,7 @@ use axum::{
     Json, Router,
 };
 use serde::Serialize;
-use solana_edge_coordinator::create_job;
+use solana_edge_coordinator::{create_job, receipt_store::ReceiptStore};
 use solana_edge_protocol::{
     validate_solana_pubkey, verify_wallet_signature, CoordinatorConfig, ReceiptSigner,
     SignedWorkReceipt, WalletChallenge, WalletChallengeRequest, WorkReceipt, WorkSubmission,
@@ -16,7 +16,7 @@ use solana_edge_protocol::{
 use solana_edge_rpc::{SolanaRpcClient, DEFAULT_DEVNET_RPC};
 use solana_edge_verifier::verify_job_result;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env,
     net::SocketAddr,
     sync::Arc,
@@ -35,7 +35,7 @@ struct AppState {
     signer: Arc<ReceiptSigner>,
     challenges: Arc<Mutex<HashMap<String, StoredChallenge>>>,
     sessions: Arc<Mutex<HashMap<String, StoredSession>>>,
-    issued_receipts: Arc<Mutex<HashSet<String>>>,
+    receipt_store: Arc<ReceiptStore>,
 }
 
 #[derive(Clone)]
@@ -126,12 +126,16 @@ async fn main() -> Result<()> {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([CONTENT_TYPE]);
 
+    let receipt_db_path = env::var("SOLANA_EDGE_RECEIPT_DB")
+        .unwrap_or_else(|_| "solana-edge-receipts.sqlite3".to_string());
+    let receipt_store = ReceiptStore::open(&receipt_db_path)?;
+
     let state = AppState {
         rpc,
         signer: Arc::new(signer),
         challenges: Arc::new(Mutex::new(HashMap::new())),
         sessions: Arc::new(Mutex::new(HashMap::new())),
-        issued_receipts: Arc::new(Mutex::new(HashSet::new())),
+        receipt_store: Arc::new(receipt_store),
     };
 
     let app = Router::new()
@@ -287,16 +291,19 @@ async fn submit(
         issued_at_unix,
     );
 
-    {
-        let mut issued = state.issued_receipts.lock().await;
-        if !issued.insert(receipt.receipt_id.clone()) {
-            return Err(ApiError::conflict(
-                "receipt already issued for this wallet/job",
-            ));
-        }
+    let signed = state.signer.sign(receipt);
+    let inserted = state
+        .receipt_store
+        .insert(&signed)
+        .map_err(|error| ApiError::upstream(format!("receipt DB write failed: {error}")))?;
+
+    if !inserted {
+        return Err(ApiError::conflict(
+            "receipt already issued for this wallet/job",
+        ));
     }
 
-    Ok(Json(state.signer.sign(receipt)))
+    Ok(Json(signed))
 }
 
 fn now_unix() -> i64 {
