@@ -17,3 +17,8 @@ test-ledger/
 .env
 .env.*
 *.keypair.json
+
+# Devnet operator outputs
+devnet-deployment.json
+reward-manifests/
+.devnet-deployer.json
