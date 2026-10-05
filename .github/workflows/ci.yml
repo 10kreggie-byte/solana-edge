@@ -16,7 +16,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Test native miner core
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Test deterministic miner core
         run: cargo test -p solana-edge-miner-core
+      - name: Check native services
+        run: cargo check -p solana-edge-rpc -p solana-edge-miner-cli -p solana-edge-coordinator -p solana-edge-verifier
       - name: Check WASM wrapper
         run: cargo check -p solana-edge-miner-wasm --target wasm32-unknown-unknown
