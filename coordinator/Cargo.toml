@@ -2,6 +2,7 @@
 name = "solana-edge-coordinator"
 version = "0.1.0"
 edition = "2021"
+default-run = "solana-edge-coordinator"
 
 [dependencies]
 anyhow = "1"
