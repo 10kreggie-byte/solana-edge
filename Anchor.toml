@@ -2,6 +2,11 @@
 resolution = true
 skip-lint = false
 
+[toolchain]
+anchor_version = "1.2.0"
+solana_version = "4.1.2"
+package_manager = "npm"
+
 [programs.devnet]
 solana_edge_rewards = "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE"
 
