@@ -61,10 +61,7 @@ pub fn build_manifest_from_sqlite(path: &str, reward_epoch: u64) -> Result<Rewar
     build_manifest(reward_epoch, rewards)
 }
 
-pub fn build_manifest(
-    reward_epoch: u64,
-    rewards: BTreeMap<String, u64>,
-) -> Result<RewardManifest> {
+pub fn build_manifest(reward_epoch: u64, rewards: BTreeMap<String, u64>) -> Result<RewardManifest> {
     if rewards.is_empty() {
         bail!("cannot build an empty reward epoch");
     }
@@ -213,10 +210,7 @@ mod tests {
     #[test]
     fn one_leaf_uses_empty_proof() {
         let mut rewards = BTreeMap::new();
-        rewards.insert(
-            bs58::encode([1u8; 32]).into_string(),
-            100,
-        );
+        rewards.insert(bs58::encode([1u8; 32]).into_string(), 100);
 
         let manifest = build_manifest(9, rewards).unwrap();
         assert_eq!(manifest.claims.len(), 1);
