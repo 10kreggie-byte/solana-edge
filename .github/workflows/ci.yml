@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Test native miner core
+        run: cargo test -p solana-edge-miner-core
+      - name: Check WASM wrapper
+        run: cargo check -p solana-edge-miner-wasm --target wasm32-unknown-unknown
