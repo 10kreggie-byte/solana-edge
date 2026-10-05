@@ -3,6 +3,8 @@ set -euo pipefail
 
 export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
 export SOLANA_WALLET="${SOLANA_WALLET:-$HOME/.config/solana/id.json}"
+export ANCHOR_PROVIDER_URL="$SOLANA_RPC_URL"
+export ANCHOR_WALLET="$SOLANA_WALLET"
 
 if [[ ! -f "$SOLANA_WALLET" ]]; then
   echo "Missing Devnet deployer keypair: $SOLANA_WALLET" >&2
