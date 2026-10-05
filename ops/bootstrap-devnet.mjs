@@ -32,7 +32,16 @@ const INITIAL_SUPPLY = BigInt(
   process.env.SOLANA_EDGE_TEST_SUPPLY ?? "10000000",
 );
 
+const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+
 const connection = new Connection(RPC_URL, "confirmed");
+const genesisHash = await connection.getGenesisHash();
+if (genesisHash !== DEVNET_GENESIS_HASH) {
+  throw new Error(
+    `Refusing bootstrap: expected Solana Devnet genesis ${DEVNET_GENESIS_HASH}, got ${genesisHash}`,
+  );
+}
+
 const payer = loadKeypair(WALLET_PATH);
 const programKeypair = loadKeypair(PROGRAM_KEYPAIR);
 const programId = programKeypair.publicKey;
