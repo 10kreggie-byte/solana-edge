@@ -37,7 +37,16 @@ if (totalAmount <= 0n) {
   throw new Error("reward manifest total_amount must be greater than zero");
 }
 
+const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+
 const connection = new Connection(RPC_URL, "confirmed");
+const genesisHash = await connection.getGenesisHash();
+if (genesisHash !== DEVNET_GENESIS_HASH) {
+  throw new Error(
+    `Refusing epoch publication: expected Solana Devnet genesis ${DEVNET_GENESIS_HASH}, got ${genesisHash}`,
+  );
+}
+
 const authority = loadKeypair(WALLET_PATH);
 const programId = new PublicKey(PROGRAM_ID);
 const epochBytes = u64Le(rewardEpoch);
