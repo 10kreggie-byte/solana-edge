@@ -36,10 +36,7 @@ async fn main() -> Result<()> {
 
     println!(
         "VERIFIED job={} slot={} signatures={} commitment={}",
-        verified.job_id,
-        verified.source_slot,
-        verified.item_count,
-        verified.commitment_hex
+        verified.job_id, verified.source_slot, verified.item_count, verified.commitment_hex
     );
 
     Ok(())
