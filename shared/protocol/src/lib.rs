@@ -70,6 +70,8 @@ pub struct CoordinatorConfig {
     pub cluster: String,
     pub receipt_signer_pubkey: String,
     pub session_ttl_seconds: u64,
+    pub rewards_program_id: Option<String>,
+    pub reward_mint: Option<String>,
 }
 
 #[derive(Debug, Error)]
