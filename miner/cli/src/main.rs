@@ -7,8 +7,8 @@ fn main() -> Result<()> {
         .nth(1)
         .context("usage: solana-edge-miner-cli <job.json>")?;
 
-    let raw = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read job file: {path}"))?;
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("failed to read job file: {path}"))?;
     let job: JobSpec =
         serde_json::from_str(&raw).with_context(|| format!("invalid JobSpec JSON: {path}"))?;
 
