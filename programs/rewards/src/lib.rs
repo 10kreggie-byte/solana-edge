@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use solana_sha256_hasher::hashv;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
+use solana_sha256_hasher::hashv;
 
 declare_id!("1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE");
 
@@ -89,11 +89,7 @@ pub mod solana_edge_rewards {
         };
 
         token::transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.key(),
-                cpi_accounts,
-                signer,
-            ),
+            CpiContext::new_with_signer(ctx.accounts.token_program.key(), cpi_accounts, signer),
             amount,
             ctx.accounts.reward_mint.decimals,
         )?;
