@@ -1,3 +1,5 @@
+pub mod receipt_store;
+
 use anyhow::Result;
 use solana_edge_miner_core::JobSpec;
 use solana_edge_rpc::SolanaRpcClient;
