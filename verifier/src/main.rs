@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
-use solana_edge_miner_core::{execute_job, JobResult, JobSpec};
+use solana_edge_miner_core::{JobResult, JobSpec};
 use solana_edge_rpc::{SolanaRpcClient, DEFAULT_DEVNET_RPC};
+use solana_edge_verifier::verify_job_result;
 use std::{env, fs};
 
 #[tokio::main]
@@ -29,54 +30,16 @@ async fn main() -> Result<()> {
     )
     .with_context(|| format!("invalid JobResult JSON: {result_path}"))?;
 
-    if job.source_cluster != "devnet" {
-        bail!(
-            "MVP safety guard: verifier only accepts devnet jobs, received {}",
-            job.source_cluster
-        );
-    }
-
     let rpc_url = env::var("SOLANA_RPC_URL").unwrap_or_else(|_| DEFAULT_DEVNET_RPC.to_string());
     let rpc = SolanaRpcClient::new(rpc_url);
-    let canonical = rpc.finalized_block(job.source_slot).await?;
-
-    if canonical.blockhash != job.source_blockhash {
-        bail!(
-            "source blockhash mismatch at slot {}: job={} canonical={}",
-            job.source_slot,
-            job.source_blockhash,
-            canonical.blockhash
-        );
-    }
-
-    let mut canonical_signatures = canonical.signatures;
-    canonical_signatures.sort();
-
-    let mut job_signatures = job.signatures.clone();
-    job_signatures.sort();
-
-    if canonical_signatures != job_signatures {
-        bail!(
-            "source signature set mismatch at slot {}: job_count={} canonical_count={}",
-            job.source_slot,
-            job_signatures.len(),
-            canonical_signatures.len()
-        );
-    }
-
-    let expected = execute_job(&job).context("verifier rejected job")?;
-
-    if expected != miner_result {
-        bail!(
-            "miner result mismatch: expected {} but received {}",
-            serde_json::to_string(&expected)?,
-            serde_json::to_string(&miner_result)?
-        );
-    }
+    let verified = verify_job_result(&rpc, &job, &miner_result).await?;
 
     println!(
         "VERIFIED job={} slot={} signatures={} commitment={}",
-        expected.job_id, expected.source_slot, expected.item_count, expected.commitment_hex
+        verified.job_id,
+        verified.source_slot,
+        verified.item_count,
+        verified.commitment_hex
     );
 
     Ok(())
