@@ -136,3 +136,31 @@ cargo run -p solana-edge-settlement -- solana-edge-receipts.sqlite3 <reward_epoc
 The Anchor reward program stores one Merkle root per epoch. A worker claims with their amount and proof. The claim PDA is derived from `reward_epoch + worker pubkey`, so a wallet cannot claim the same epoch twice.
 
 V1 uses the standard SPL Token Program deliberately. Token-2022 features remain out of scope until settlement is proven on Devnet.
+
+
+## Live Devnet operator flow
+
+The codebase now includes the complete deployment/claim path, but deployment requires a dedicated Devnet signer that is intentionally not stored in source control.
+
+```bash
+# 1. Deploy rewards program + bootstrap disposable test mint/vault
+bash scripts/devnet/deploy-rewards.sh
+
+# 2. Close a mined reward epoch into a public proof manifest
+bash scripts/rewards/build-epoch.sh <reward_epoch>
+
+# 3. Export the deployed program id from devnet-deployment.json
+export SOLANA_EDGE_REWARDS_PROGRAM_ID=<PROGRAM_ID>
+
+# 4. Publish that epoch root to Devnet
+bash scripts/rewards/publish-epoch.sh reward-manifests/<reward_epoch>.json
+
+# 5. Start coordinator with the deployed program + mint
+export SOLANA_EDGE_REWARDS_PROGRAM_ID=<PROGRAM_ID>
+export SOLANA_EDGE_REWARD_MINT=<MINT>
+cargo run -p solana-edge-coordinator --bin server
+```
+
+The browser can then load its wallet-specific proof and submit the explicit Devnet claim transaction.
+
+See `docs/DEVNET_DEPLOY.md` for the security boundaries and GitHub Actions deployment option.
