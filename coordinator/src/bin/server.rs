@@ -7,7 +7,6 @@ use axum::{
     Json, Router,
 };
 use serde::Serialize;
-use solana_edge_settlement::{RewardClaim, RewardManifest};
 use solana_edge_coordinator::{create_job, receipt_store::ReceiptStore};
 use solana_edge_protocol::{
     validate_solana_pubkey, verify_wallet_signature, CoordinatorConfig, ReceiptSigner,
@@ -15,6 +14,7 @@ use solana_edge_protocol::{
     WorkerSession, WorkerSessionRequest,
 };
 use solana_edge_rpc::{SolanaRpcClient, DEFAULT_DEVNET_RPC};
+use solana_edge_settlement::{RewardClaim, RewardManifest};
 use solana_edge_verifier::verify_job_result;
 use std::{
     collections::HashMap,
@@ -214,7 +214,6 @@ async fn config(State(state): State<AppState>) -> Json<CoordinatorConfig> {
         reward_mint: state.reward_mint.clone(),
     })
 }
-
 
 async fn reward_claim(
     State(state): State<AppState>,
