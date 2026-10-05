@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+    "shared/rpc",
     "miner/core",
+    "miner/cli",
     "miner/wasm",
+    "coordinator",
+    "verifier",
 ]

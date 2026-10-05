@@ -1,0 +1,9 @@
+[package]
+name = "solana-edge-miner-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+solana-edge-miner-core = { path = "../core" }
