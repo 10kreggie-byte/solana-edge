@@ -1,0 +1,13 @@
+{
+  "name": "solana-edge-ops",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "check": "node --check bootstrap-devnet.mjs && node --check publish-epoch.mjs"
+  },
+  "dependencies": {
+    "@solana/spl-token": "0.4.15",
+    "@solana/web3.js": "1.99.0"
+  }
+}
