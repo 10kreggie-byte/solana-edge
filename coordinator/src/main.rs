@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use solana_edge_miner_core::JobSpec;
+use solana_edge_coordinator::create_job;
 use solana_edge_rpc::{SolanaRpcClient, DEFAULT_DEVNET_RPC};
 use std::env;
 
@@ -22,20 +22,7 @@ async fn main() -> Result<()> {
         })
         .transpose()?;
 
-    let block = match requested_slot {
-        Some(slot) => rpc.finalized_block(slot).await?,
-        None => rpc.latest_finalized_block().await?,
-    };
-
-    let prefix: String = block.blockhash.chars().take(12).collect();
-    let job = JobSpec {
-        version: 0,
-        job_id: format!("{cluster}-slot-{}-{prefix}", block.slot),
-        source_cluster: cluster,
-        source_slot: block.slot,
-        source_blockhash: block.blockhash,
-        signatures: block.signatures,
-    };
+    let job = create_job(&rpc, &cluster, requested_slot).await?;
 
     eprintln!(
         "created {} from finalized slot {} ({} signatures)",

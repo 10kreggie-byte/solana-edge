@@ -20,7 +20,28 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Test deterministic miner core
         run: cargo test -p solana-edge-miner-core
+      - name: Test protocol signatures
+        run: cargo test -p solana-edge-protocol
       - name: Check native services
         run: cargo check -p solana-edge-rpc -p solana-edge-miner-cli -p solana-edge-coordinator -p solana-edge-verifier
       - name: Check WASM wrapper
         run: cargo check -p solana-edge-miner-wasm --target wasm32-unknown-unknown
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Install browser dependencies
+        working-directory: web
+        run: npm install
+      - name: Build browser miner
+        working-directory: web
+        run: npm run build
