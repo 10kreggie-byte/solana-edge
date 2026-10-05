@@ -151,9 +151,7 @@ pub fn validate_solana_pubkey(pubkey: &str) -> Result<[u8; 32], ProtocolError> {
     let decoded = bs58::decode(pubkey)
         .into_vec()
         .map_err(|_| ProtocolError::InvalidPubkey)?;
-    decoded
-        .try_into()
-        .map_err(|_| ProtocolError::InvalidPubkey)
+    decoded.try_into().map_err(|_| ProtocolError::InvalidPubkey)
 }
 
 pub fn verify_wallet_signature(
