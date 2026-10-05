@@ -1,0 +1,11 @@
+[package]
+name = "solana-edge-coordinator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+solana-edge-miner-core = { path = "../miner/core" }
+solana-edge-rpc = { path = "../shared/rpc" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
