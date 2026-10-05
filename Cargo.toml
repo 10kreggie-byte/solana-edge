@@ -8,4 +8,6 @@ members = [
     "miner/wasm",
     "coordinator",
     "verifier",
+    "settlement",
+    "programs/rewards",
 ]
