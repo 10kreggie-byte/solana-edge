@@ -9,14 +9,14 @@ The goal is to let low-end computers and web browsers contribute small, verifiab
 Prove this loop on Solana Devnet:
 
 ```
-Browser/native miner
-  -> receives deterministic finalized Solana data job
-  -> processes job in shared Rust/WASM engine
-  -> returns result + commitment
-  -> independent verifier refetches canonical Solana source data
-  -> verifier recomputes result and requires an exact match
-  -> coordinator issues signed work receipt (next milestone)
-  -> reward program settles test reward on Devnet
+Browser wallet
+  -> signs one worker-authentication message
+  -> receives short-lived worker session
+  -> browser receives finalized Solana data job
+  -> Rust/WASM computes deterministic result
+  -> verifier refetches canonical finalized data
+  -> coordinator signs wallet-bound WorkReceipt
+  -> reward program settles test reward on Devnet (next milestone)
 ```
 
 ## Design principles
@@ -25,10 +25,10 @@ Browser/native miner
 - Low-end hardware first
 - Deterministic, auditable jobs
 - No hidden background mining
-- Explicit CPU/storage/bandwidth controls
+- Explicit start/stop controls
+- Wallet authentication without requesting a transaction
 - Off-chain microjob accounting, on-chain settlement
 - Devnet before Mainnet
-- Fixed security boundaries and minimal smart-contract surface
 - No real-money token until the protocol works
 
 ## Repository layout
@@ -37,65 +37,72 @@ Browser/native miner
 solana-edge/
 ├── docs/                 Protocol and architecture specifications
 ├── shared/
-│   └── rpc/              Minimal finalized Solana JSON-RPC client
+│   ├── rpc/              Minimal finalized Solana JSON-RPC client
+│   └── protocol/         Wallet auth + signed work receipts
 ├── miner/
 │   ├── core/             Deterministic Rust job engine
 │   ├── cli/              Native miner smoke-test client
 │   └── wasm/             Browser/WebAssembly interface
-├── coordinator/          Finalized Devnet job creation
+├── coordinator/          Job creation + browser-facing API
 ├── verifier/             Independent source + result verification
 ├── programs/
 │   └── rewards/          Solana/Anchor reward-settlement program
-├── scripts/              End-to-end Devnet smoke tests
+├── scripts/              Devnet helpers and smoke tests
 └── web/                  Browser miner dashboard
 ```
 
-## Current Devnet pipeline
-
-The coordinator currently uses Solana's JSON-RPC interface with `finalized` commitment. It chooses a recently produced finalized block and requests signature-only transaction data. The generated `JobSpec` is cryptographically bound to the cluster, slot, blockhash, job id, and transaction signatures.
-
-The verifier independently refetches the same finalized slot and rejects the job if its blockhash or signature set does not match the canonical RPC response.
-
-Public Devnet RPC is suitable only for this prototype and can rate-limit callers. Production architecture will use multiple independent RPC sources.
-
-## Run the native end-to-end smoke test
-
-Requirements: stable Rust/Cargo and internet access.
+## Run the native smoke test
 
 ```bash
 bash scripts/devnet-smoke.sh
 ```
 
-Equivalent manual flow:
+## Run the browser miner locally
+
+Generate a local receipt-signing key and start the coordinator API:
 
 ```bash
-cargo run -p solana-edge-coordinator > /tmp/job.json
-cargo run -p solana-edge-miner-cli -- /tmp/job.json > /tmp/result.json
-cargo run -p solana-edge-verifier -- /tmp/job.json /tmp/result.json
+eval "$(bash scripts/generate-dev-receipt-key.sh)"
+cargo run -p solana-edge-coordinator --bin server
 ```
 
-To reproduce a specific finalized slot:
+In a second terminal:
 
 ```bash
-cargo run -p solana-edge-coordinator -- 123456789 > /tmp/job.json
+cd web
+npm install
+npm run dev
 ```
 
-Override the RPC endpoint with:
+Open `http://127.0.0.1:5173`, connect a Devnet-capable Solana wallet, and press **Start contributing**. The wallet signs an authentication message only. The prototype does not request an on-chain transaction.
 
-```bash
-SOLANA_RPC_URL=https://your-devnet-rpc.example bash scripts/devnet-smoke.sh
-```
+The coordinator API binds to `127.0.0.1:8787` by default and only allows `http://localhost:5173` as its browser origin unless overridden with `SOLANA_EDGE_WEB_ORIGIN`.
+
+## Receipt security model
+
+A WorkReceipt is not created from miner self-reporting alone. The coordinator:
+
+1. proves the browser controls the submitted Solana wallet through message signing;
+2. independently refetches the finalized source block;
+3. recomputes the deterministic miner result;
+4. binds the receipt to wallet, job, slot, commitment, score, and reward epoch;
+5. signs the receipt with a separate Ed25519 coordinator key.
+
+The coordinator signing seed must be provided through `SOLANA_EDGE_RECEIPT_SIGNING_KEY_HEX` and is never committed to this repository.
 
 ## Phase 0 checklist
 
-- [x] Define a canonical deterministic job format.
-- [x] Build the Rust job engine.
-- [x] Compile boundary for WebAssembly.
-- [x] Pull real finalized Devnet data.
-- [x] Add independent canonical-source verification.
-- [ ] Run the browser WASM miner end-to-end.
-- [ ] Sign a work receipt bound to miner wallet + verified result.
-- [ ] Settle a test reward on Devnet.
+- [x] Canonical deterministic job format
+- [x] Rust job engine
+- [x] WebAssembly boundary
+- [x] Real finalized Devnet ingestion
+- [x] Independent canonical-source verification
+- [x] Browser miner UI
+- [x] Wallet proof-of-control session
+- [x] Signed wallet-bound WorkReceipt
+- [ ] Devnet reward settlement program
+- [ ] Persistent receipt/replay database
+- [ ] Multi-provider verification
 
 ## Non-goals for MVP
 
@@ -106,8 +113,8 @@ SOLANA_RPC_URL=https://your-devnet-rpc.example bash scripts/devnet-smoke.sh
 - Staking
 - Transfer taxes
 - GPU/ASIC proof-of-work
-- Unbounded browser resource usage
+- Hidden/background browser mining
 
 ## Status
 
-Early engineering prototype. Nothing in this repository should be treated as production-ready or financially valuable.
+Early engineering prototype. Work receipts currently have test/accounting meaning only and no financial value.
