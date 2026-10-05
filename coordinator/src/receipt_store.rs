@@ -63,17 +63,17 @@ impl ReceiptStore {
                 signed_receipt_json
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
-                receipt.receipt_id,
-                receipt.worker_pubkey,
-                receipt.job_id,
+                &receipt.receipt_id,
+                &receipt.worker_pubkey,
+                &receipt.job_id,
                 receipt.source_slot,
-                receipt.commitment_hex,
+                &receipt.commitment_hex,
                 receipt.item_count,
                 receipt.score,
                 receipt.reward_epoch,
                 receipt.issued_at_unix,
-                signed.signer_pubkey,
-                signed.signature_hex,
+                &signed.signer_pubkey,
+                &signed.signature_hex,
                 json,
             ],
         )?;
