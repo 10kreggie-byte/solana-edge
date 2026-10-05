@@ -5,6 +5,8 @@ import {
   createMint,
   getAssociatedTokenAddressSync,
   mintTo,
+  setAuthority,
+  AuthorityType,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
@@ -112,6 +114,18 @@ const mintSignature = await mintTo(
   TOKEN_PROGRAM_ID,
 );
 
+const mintAuthorityRevocationSignature = await setAuthority(
+  connection,
+  payer,
+  mint,
+  payer,
+  AuthorityType.MintTokens,
+  null,
+  [],
+  { commitment: "confirmed" },
+  TOKEN_PROGRAM_ID,
+);
+
 const deployment = {
   cluster: "devnet",
   rpc_url: RPC_URL,
@@ -124,6 +138,8 @@ const deployment = {
   token_decimals: 0,
   initialize_signature: initializeSignature,
   mint_signature: mintSignature,
+  mint_authority_revocation_signature: mintAuthorityRevocationSignature,
+  mint_authority_revoked: true,
 };
 
 const outputPath =
