@@ -1,0 +1,27 @@
+{
+  "name": "solana-edge-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "wasm:build": "wasm-pack build ../miner/wasm --target web --out-dir ../../web/src/wasm-pkg --out-name solana_edge_miner",
+    "dev": "npm run wasm:build && vite",
+    "build": "npm run wasm:build && tsc -b && vite build",
+    "typecheck": "npm run wasm:build && tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@solana/wallet-adapter-base": "0.9.28",
+    "@solana/wallet-adapter-react": "0.15.40",
+    "@solana/wallet-adapter-react-ui": "0.9.40",
+    "@solana/web3.js": "1.99.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "latest",
+    "typescript": "latest",
+    "vite": "8.3.2"
+  }
+}
