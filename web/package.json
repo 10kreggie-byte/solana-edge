@@ -14,12 +14,12 @@
     "@solana/wallet-adapter-react": "0.15.40",
     "@solana/wallet-adapter-react-ui": "0.9.40",
     "@solana/web3.js": "1.99.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@types/react": "18.3.12",
-    "@types/react-dom": "18.3.1",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
     "typescript": "latest",
     "vite": "8.3.2"
