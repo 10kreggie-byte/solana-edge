@@ -13,7 +13,17 @@ fi
 
 bash scripts/devnet/prepare-program-keypair.sh
 
+DEVNET_GENESIS_HASH="EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+CONNECTED_GENESIS_HASH="$(solana genesis-hash --url "$SOLANA_RPC_URL")"
+if [[ "$CONNECTED_GENESIS_HASH" != "$DEVNET_GENESIS_HASH" ]]; then
+  echo "Refusing deployment: RPC is not Solana Devnet." >&2
+  echo "Expected genesis: $DEVNET_GENESIS_HASH" >&2
+  echo "Connected genesis: $CONNECTED_GENESIS_HASH" >&2
+  exit 1
+fi
+
 echo "Using RPC: $SOLANA_RPC_URL" >&2
+echo "Verified Devnet genesis: $CONNECTED_GENESIS_HASH" >&2
 echo "Deployer: $(solana address -k "$SOLANA_WALLET")" >&2
 echo "Balance: $(solana balance --url "$SOLANA_RPC_URL" -k "$SOLANA_WALLET")" >&2
 
