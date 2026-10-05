@@ -4,7 +4,7 @@ This runbook is intentionally Devnet-only.
 
 ## Security boundary
 
-Use a dedicated deployer keypair that has no Mainnet funds and is never reused for a production treasury. The reward token created by this flow is disposable and has zero decimals so one raw token unit equals one MVP reward score unit.
+Use a dedicated deployer keypair that has no Mainnet funds and is never reused for a production treasury. The reward token created by this flow is disposable and has zero decimals so one raw token unit equals one MVP reward score unit. After the bootstrap supply is deposited into the vault, mint authority is permanently revoked so the Devnet supply is fixed.
 
 Never commit either the deployer keypair or the program keypair. The repository ignores local deployment outputs and keypair JSON files.
 
@@ -36,8 +36,9 @@ The script:
 5. derives the config PDA;
 6. creates the PDA-owned associated reward vault;
 7. initializes the reward program;
-8. mints the test supply into the vault;
-9. writes `devnet-deployment.json`.
+8. mints the fixed test supply into the vault;
+9. permanently revokes the test mint authority;
+10. writes `devnet-deployment.json`.
 
 After the first successful deployment, securely back up the program keypair. Recreating it changes the program ID.
 
