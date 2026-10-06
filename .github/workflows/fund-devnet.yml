@@ -57,14 +57,7 @@ jobs:
             RESPONSE="$(curl -fsS https://api.devnet.solana.com \
               -H 'content-type: application/json' \
               --data "$PAYLOAD")"
-            printf '%s' "$RESPONSE" | python3 -c '
-import json, sys
-obj = json.load(sys.stdin)
-if "result" not in obj:
-    print("Devnet RPC error:", obj, file=sys.stderr)
-    raise SystemExit(1)
-print(obj["result"]["value"])
-'
+            printf '%s' "$RESPONSE" | python3 -c 'import json,sys; o=json.load(sys.stdin); r=o.get("result"); print(r["value"]) if r is not None else (print("Devnet RPC error:", o, file=sys.stderr), sys.exit(1))'
           }
 
           BEFORE="$(get_balance)"
