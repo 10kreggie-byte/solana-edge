@@ -1,0 +1,112 @@
+name: Measure Devnet Deploy Cost
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/measure-devnet-cost.yml"
+      - "Anchor.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "programs/rewards/**"
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Solana CLI 4.1.2
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v4.1.2/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor 1.2.0
+        run: |
+          cargo install --git https://github.com/otter-sec/anchor avm --force
+          avm install 1.2.0
+          avm use 1.2.0
+
+      - name: Build deployable Anchor program
+        run: |
+          set -euo pipefail
+          anchor build
+          test -f target/deploy/solana_edge_rewards.so
+
+      - name: Measure live Devnet deployment cost
+        env:
+          SOLANA_RPC_URL: https://api.devnet.solana.com
+        run: |
+          set -euo pipefail
+
+          SO=target/deploy/solana_edge_rewards.so
+          SO_BYTES="$(wc -c < "$SO" | tr -d ' ')"
+          PROGRAM_BYTES=36
+          PROGRAMDATA_BYTES=$((SO_BYTES + 45))
+          BUFFER_BYTES=$((SO_BYTES + 37))
+
+          rpc_rent() {
+            local bytes="$1"
+            local payload
+            payload="$(printf '{"jsonrpc":"2.0","id":1,"method":"getMinimumBalanceForRentExemption","params":[%s]}' "$bytes")"
+            curl -fsS "$SOLANA_RPC_URL"               -H 'content-type: application/json'               --data "$payload"               | python3 -c 'import json,sys; o=json.load(sys.stdin); print(o["result"])'
+          }
+
+          PROGRAM_RENT="$(rpc_rent "$PROGRAM_BYTES")"
+          PROGRAMDATA_RENT="$(rpc_rent "$PROGRAMDATA_BYTES")"
+          BUFFER_RENT="$(rpc_rent "$BUFFER_BYTES")"
+          FINAL_RENT=$((PROGRAM_RENT + PROGRAMDATA_RENT))
+
+          mkdir -p /tmp/measure-wallet
+          solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/measure-wallet/fee-payer.json
+          solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/measure-wallet/program.json
+
+          echo "=== Solana Edge Devnet deployment cost ===" | tee deployment-cost.txt
+          echo "SO_BYTES=$SO_BYTES" | tee -a deployment-cost.txt
+          echo "PROGRAM_ACCOUNT_BYTES=$PROGRAM_BYTES" | tee -a deployment-cost.txt
+          echo "PROGRAMDATA_ACCOUNT_BYTES=$PROGRAMDATA_BYTES" | tee -a deployment-cost.txt
+          echo "TEMP_BUFFER_BYTES=$BUFFER_BYTES" | tee -a deployment-cost.txt
+          echo "PROGRAM_RENT_LAMPORTS=$PROGRAM_RENT" | tee -a deployment-cost.txt
+          echo "PROGRAMDATA_RENT_LAMPORTS=$PROGRAMDATA_RENT" | tee -a deployment-cost.txt
+          echo "TEMP_BUFFER_RENT_LAMPORTS=$BUFFER_RENT" | tee -a deployment-cost.txt
+          echo "FINAL_PERSISTENT_RENT_LAMPORTS=$FINAL_RENT" | tee -a deployment-cost.txt
+          python3 - <<PY | tee -a deployment-cost.txt
+final_rent = $FINAL_RENT
+buffer_rent = $BUFFER_RENT
+print(f"FINAL_PERSISTENT_RENT_SOL={final_rent / 1_000_000_000:.9f}")
+print(f"TEMP_BUFFER_RENT_SOL={buffer_rent / 1_000_000_000:.9f}")
+PY
+
+          echo "" | tee -a deployment-cost.txt
+          echo "=== Solana CLI 4.1.2 preflight with zero-balance throwaway payer ===" | tee -a deployment-cost.txt
+
+          set +e
+          PREFLIGHT="$(
+            solana program deploy "$SO"               --url "$SOLANA_RPC_URL"               --keypair /tmp/measure-wallet/fee-payer.json               --program-id /tmp/measure-wallet/program.json               --use-rpc 2>&1
+          )"
+          STATUS=$?
+          set -e
+
+          printf '%s\n' "$PREFLIGHT" | tee -a deployment-cost.txt
+          echo "PREFLIGHT_EXIT_CODE=$STATUS" | tee -a deployment-cost.txt
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "Unexpected success with zero-balance throwaway payer; refusing to treat measurement as valid." >&2
+            exit 1
+          fi
+
+          echo "" | tee -a deployment-cost.txt
+          echo "The preflight is expected to fail for insufficient funds before any transaction is sent." | tee -a deployment-cost.txt
+
+      - name: Upload cost report
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-edge-devnet-deploy-cost
+          path: deployment-cost.txt
+          if-no-files-found: error
