@@ -1,0 +1,59 @@
+name: Fund Devnet Deployer
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_lamports:
+        description: "Devnet lamports to mine (100000000 = 0.1 SOL)"
+        required: true
+        default: "100000000"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fund:
+    runs-on: ubuntu-latest
+    environment: devnet
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate requested amount
+        env:
+          TARGET_LAMPORTS: ${{ inputs.target_lamports }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_LAMPORTS" =~ ^[0-9]+$ ]]
+          test "$TARGET_LAMPORTS" -ge 1
+          test "$TARGET_LAMPORTS" -le 1000000000
+
+      - name: Install Devnet PoW faucet client
+        run: cargo install devnet-pow --version 0.1.4 --locked
+
+      - name: Materialize dedicated Devnet deployer
+        env:
+          DEPLOYER_JSON: ${{ secrets.SOLANA_DEVNET_DEPLOYER_KEYPAIR_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOYER_JSON"
+          printf '%s\n' "$DEPLOYER_JSON" > "$RUNNER_TEMP/devnet-deployer.json"
+          chmod 600 "$RUNNER_TEMP/devnet-deployer.json"
+
+      - name: Mine Devnet SOL
+        env:
+          TARGET_LAMPORTS: ${{ inputs.target_lamports }}
+        run: |
+          set -euo pipefail
+          devnet-pow \
+            -k "$RUNNER_TEMP/devnet-deployer.json" \
+            -u dev \
+            mine \
+            --target-lamports "$TARGET_LAMPORTS"
+
+      - name: Remove temporary key material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/devnet-deployer.json"
