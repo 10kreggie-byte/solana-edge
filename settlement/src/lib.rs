@@ -208,6 +208,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reward_leaf_matches_protocol_test_vector() {
+        let worker = [1u8; 32];
+        assert_eq!(
+            hex::encode(reward_leaf_hash(42, &worker, 10)),
+            "2200552f2bb91560646efbd8afd5bd48bdb5c0672ff9b993ba8365baaa8d188c"
+        );
+    }
+
+    #[test]
     fn one_leaf_uses_empty_proof() {
         let mut rewards = BTreeMap::new();
         rewards.insert(bs58::encode([1u8; 32]).into_string(), 100);

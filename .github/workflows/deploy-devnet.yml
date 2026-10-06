@@ -1,0 +1,56 @@
+name: Deploy Devnet Rewards
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: devnet
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Solana CLI 4.1.2
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v4.1.2/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor 1.2.0
+        run: |
+          cargo install --git https://github.com/otter-sec/anchor avm --force
+          avm install 1.2.0
+          avm use 1.2.0
+
+      - name: Materialize dedicated Devnet deployer
+        env:
+          DEPLOYER_JSON: ${{ secrets.SOLANA_DEVNET_DEPLOYER_KEYPAIR_JSON }}
+        run: |
+          test -n "$DEPLOYER_JSON"
+          mkdir -p "$HOME/.config/solana"
+          printf '%s\n' "$DEPLOYER_JSON" > "$HOME/.config/solana/id.json"
+          chmod 600 "$HOME/.config/solana/id.json"
+
+      - name: Deploy program and bootstrap disposable test rewards
+        env:
+          SOLANA_EDGE_PROGRAM_KEYPAIR_JSON: ${{ secrets.SOLANA_EDGE_PROGRAM_KEYPAIR_JSON }}
+          SOLANA_RPC_URL: https://api.devnet.solana.com
+          SOLANA_WALLET: /home/runner/.config/solana/id.json
+        run: |
+          test -n "$SOLANA_EDGE_PROGRAM_KEYPAIR_JSON"
+          bash scripts/devnet/deploy-rewards.sh
+
+      - name: Upload deployment addresses
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-edge-devnet-deployment
+          path: devnet-deployment.json
+          if-no-files-found: error

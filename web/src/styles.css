@@ -243,3 +243,43 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+
+.claimPanel {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 20px;
+  background: #0a0e14;
+  border: 1px solid #2b3442;
+  border-radius: 16px;
+}
+
+.claimPanel input {
+  width: 100%;
+  color: #f4f7fb;
+  background: #121824;
+  border: 1px solid #303949;
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+}
+
+.claimStatus {
+  color: #c9d1db;
+  font-size: 0.92rem;
+}
+
+.claimMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.claimMeta span {
+  border: 1px solid #303949;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #9ba6b5;
+  font-size: 0.78rem;
+}

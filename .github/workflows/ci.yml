@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -51,3 +55,17 @@ jobs:
       - name: Build browser miner
         working-directory: web
         run: npm run build
+
+  ops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install operator dependencies
+        working-directory: ops
+        run: npm install
+      - name: Syntax-check Devnet operator scripts
+        working-directory: ops
+        run: npm run check
