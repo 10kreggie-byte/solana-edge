@@ -53,10 +53,18 @@ jobs:
           set -euo pipefail
 
           get_balance() {
-            curl -fsS https://api.devnet.solana.com \
+            PAYLOAD="$(printf '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["%s",{"commitment":"confirmed"}]}' "$DEPLOYER_PUBKEY")"
+            RESPONSE="$(curl -fsS https://api.devnet.solana.com \
               -H 'content-type: application/json' \
-              --data "{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["$DEPLOYER_PUBKEY",{"commitment":"confirmed"}]}" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["value"])'
+              --data "$PAYLOAD")"
+            printf '%s' "$RESPONSE" | python3 -c '
+import json, sys
+obj = json.load(sys.stdin)
+if "result" not in obj:
+    print("Devnet RPC error:", obj, file=sys.stderr)
+    raise SystemExit(1)
+print(obj["result"]["value"])
+'
           }
 
           BEFORE="$(get_balance)"
