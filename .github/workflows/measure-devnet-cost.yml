@@ -62,11 +62,19 @@ jobs:
           PROGRAMDATA_RENT="$(rpc_rent "$PROGRAMDATA_BYTES")"
           BUFFER_RENT="$(rpc_rent "$BUFFER_BYTES")"
           FINAL_RENT=$((PROGRAM_RENT + PROGRAMDATA_RENT))
-          export FINAL_RENT BUFFER_RENT
+          CONFIG_BYTES=106
+          MINT_BYTES=82
+          VAULT_BYTES=165
+          CONFIG_RENT="$(rpc_rent "$CONFIG_BYTES")"
+          MINT_RENT="$(rpc_rent "$MINT_BYTES")"
+          VAULT_RENT="$(rpc_rent "$VAULT_BYTES")"
+          BOOTSTRAP_RENT=$((CONFIG_RENT + MINT_RENT + VAULT_RENT))
+          export FINAL_RENT BUFFER_RENT BOOTSTRAP_RENT
 
           mkdir -p /tmp/measure-wallet
           solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/measure-wallet/fee-payer.json
           solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/measure-wallet/program.json
+          solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/measure-wallet/buffer.json
 
           echo "=== Solana Edge Devnet deployment cost ===" | tee deployment-cost.txt
           echo "SO_BYTES=$SO_BYTES" | tee -a deployment-cost.txt
@@ -77,14 +85,18 @@ jobs:
           echo "PROGRAMDATA_RENT_LAMPORTS=$PROGRAMDATA_RENT" | tee -a deployment-cost.txt
           echo "TEMP_BUFFER_RENT_LAMPORTS=$BUFFER_RENT" | tee -a deployment-cost.txt
           echo "FINAL_PERSISTENT_RENT_LAMPORTS=$FINAL_RENT" | tee -a deployment-cost.txt
-          python3 -c 'import os; final_rent=int(os.environ["FINAL_RENT"]); buffer_rent=int(os.environ["BUFFER_RENT"]); print(f"FINAL_PERSISTENT_RENT_SOL={final_rent/1_000_000_000:.9f}"); print(f"TEMP_BUFFER_RENT_SOL={buffer_rent/1_000_000_000:.9f}")' | tee -a deployment-cost.txt
+          echo "CONFIG_RENT_LAMPORTS=$CONFIG_RENT" | tee -a deployment-cost.txt
+          echo "MINT_RENT_LAMPORTS=$MINT_RENT" | tee -a deployment-cost.txt
+          echo "VAULT_RENT_LAMPORTS=$VAULT_RENT" | tee -a deployment-cost.txt
+          echo "BOOTSTRAP_RENT_LAMPORTS=$BOOTSTRAP_RENT" | tee -a deployment-cost.txt
+          python3 -c 'import os; final_rent=int(os.environ["FINAL_RENT"]); buffer_rent=int(os.environ["BUFFER_RENT"]); bootstrap=int(os.environ["BOOTSTRAP_RENT"]); print(f"FINAL_PERSISTENT_RENT_SOL={final_rent/1_000_000_000:.9f}"); print(f"TEMP_BUFFER_RENT_SOL={buffer_rent/1_000_000_000:.9f}"); print(f"BOOTSTRAP_RENT_SOL={bootstrap/1_000_000_000:.9f}")' | tee -a deployment-cost.txt
 
           echo "" | tee -a deployment-cost.txt
           echo "=== Solana CLI 4.1.2 preflight with zero-balance throwaway payer ===" | tee -a deployment-cost.txt
 
           set +e
           PREFLIGHT="$(
-            solana program deploy "$SO"               --url "$SOLANA_RPC_URL"               --keypair /tmp/measure-wallet/fee-payer.json               --program-id /tmp/measure-wallet/program.json               --use-rpc 2>&1
+            solana program deploy "$SO"               --url "$SOLANA_RPC_URL"               --keypair /tmp/measure-wallet/fee-payer.json               --program-id /tmp/measure-wallet/program.json               --buffer /tmp/measure-wallet/buffer.json               --use-rpc 2>&1
           )"
           STATUS=$?
           set -e
