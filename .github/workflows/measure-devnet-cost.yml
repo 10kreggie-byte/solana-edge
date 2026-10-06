@@ -30,7 +30,7 @@ jobs:
       - name: Install Anchor 1.2.0
         run: |
           cargo install --git https://github.com/otter-sec/anchor avm --force
-          avm install 1.2.0
+          avm install 1.2.0 --from-source
           avm use 1.2.0
 
       - name: Build deployable Anchor program
