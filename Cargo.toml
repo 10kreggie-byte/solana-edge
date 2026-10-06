@@ -11,3 +11,6 @@ members = [
     "settlement",
     "programs/rewards",
 ]
+
+[profile.release]
+overflow-checks = true
