@@ -219,8 +219,7 @@ async fn reward_claim(
     State(state): State<AppState>,
     Path((reward_epoch, worker)): Path<(u64, String)>,
 ) -> ApiResult<RewardClaimResponse> {
-    validate_solana_pubkey(&worker)
-        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    validate_solana_pubkey(&worker).map_err(|error| ApiError::bad_request(error.to_string()))?;
 
     let path = format!("{}/{}.json", state.reward_manifest_dir, reward_epoch);
     let raw = std::fs::read_to_string(&path)
