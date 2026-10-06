@@ -48,13 +48,42 @@ jobs:
       - name: Mine Devnet SOL
         env:
           TARGET_LAMPORTS: ${{ inputs.target_lamports }}
+          DEPLOYER_PUBKEY: 2z1FZKaE42QjeZzEiB3pnPrAqtq5Xrr62t2BccfqThau
         run: |
           set -euo pipefail
-          devnet-pow \
+
+          get_balance() {
+            curl -fsS https://api.devnet.solana.com \
+              -H 'content-type: application/json' \
+              --data "{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["$DEPLOYER_PUBKEY",{"commitment":"confirmed"}]}" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["value"])'
+          }
+
+          BEFORE="$(get_balance)"
+          echo "Deployer balance before: $BEFORE lamports"
+
+          set +e
+          OUTPUT="$(devnet-pow \
             -k "$RUNNER_TEMP/devnet-deployer.json" \
             -u dev \
             mine \
-            --target-lamports "$TARGET_LAMPORTS"
+            -d 3 \
+            --reward 0.02 \
+            --no-infer \
+            --target-lamports "$TARGET_LAMPORTS" 2>&1)"
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+
+          test "$STATUS" -eq 0
+
+          AFTER="$(get_balance)"
+          echo "Deployer balance after: $AFTER lamports"
+
+          if [ "$AFTER" -le "$BEFORE" ]; then
+            echo "Funding did not increase the deployer balance." >&2
+            exit 1
+          fi
 
       - name: Remove temporary key material
         if: always()
