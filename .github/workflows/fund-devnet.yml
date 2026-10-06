@@ -61,7 +61,33 @@ jobs:
           }
 
           BEFORE="$(get_balance)"
-          echo "Deployer balance before: $BEFORE lamports"
+          echo "Deployer balance before bootstrap: $BEFORE lamports"
+
+          if [ "$BEFORE" -lt 5000 ]; then
+            AIRDROP_PAYLOAD="$(printf '{"jsonrpc":"2.0","id":2,"method":"requestAirdrop","params":["%s",1000000,{"commitment":"confirmed"}]}' "$DEPLOYER_PUBKEY")"
+            AIRDROP_RESPONSE="$(curl -fsS https://api.devnet.solana.com \
+              -H 'content-type: application/json' \
+              --data "$AIRDROP_PAYLOAD")"
+            AIRDROP_SIG="$(printf '%s' "$AIRDROP_RESPONSE" | python3 -c 'import json,sys; o=json.load(sys.stdin); r=o.get("result"); print(r) if r is not None else (print("Devnet bootstrap airdrop error:", o, file=sys.stderr), sys.exit(1))')"
+            echo "Requested 0.001 SOL fee bootstrap: $AIRDROP_SIG"
+
+            BOOTSTRAP_BALANCE=0
+            for _ in $(seq 1 12); do
+              sleep 5
+              BOOTSTRAP_BALANCE="$(get_balance)"
+              if [ "$BOOTSTRAP_BALANCE" -ge 5000 ]; then
+                break
+              fi
+            done
+
+            if [ "$BOOTSTRAP_BALANCE" -lt 5000 ]; then
+              echo "Fee bootstrap did not arrive; cannot pay PoW claim transaction fees." >&2
+              exit 1
+            fi
+          fi
+
+          MINING_BEFORE="$(get_balance)"
+          echo "Deployer balance before PoW mining: $MINING_BEFORE lamports"
 
           set +e
           OUTPUT="$(devnet-pow \
@@ -79,10 +105,13 @@ jobs:
           test "$STATUS" -eq 0
 
           AFTER="$(get_balance)"
-          echo "Deployer balance after: $AFTER lamports"
+          DELTA=$((AFTER - MINING_BEFORE))
+          MIN_REQUIRED=$((TARGET_LAMPORTS * 95 / 100))
+          echo "Deployer balance after PoW mining: $AFTER lamports"
+          echo "PoW funding delta: $DELTA lamports"
 
-          if [ "$AFTER" -le "$BEFORE" ]; then
-            echo "Funding did not increase the deployer balance." >&2
+          if [ "$DELTA" -lt "$MIN_REQUIRED" ]; then
+            echo "PoW funding did not reach at least 95% of the requested target." >&2
             exit 1
           fi
 
